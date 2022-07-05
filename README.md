@@ -8,8 +8,7 @@ News get from https://newsapi.org. using API <br/>
 * Installation transformers u can use (https://github.com/pytorch/serve.git) <br/>
 apt update<br/>
 apt install -y default-jdk <br/>
-pip install torchserve torch-model-archiver torch-workflow-archiver <br/>
-pip install transformers<br/>
+pip install torchserve torch-model-archiver torch-workflow-archiver transformers openpyxl <br/>
 python ./ts_scripts/install_dependencies.py<br/>
 
 ## Downloading news
@@ -22,16 +21,16 @@ python ./ts_scripts/install_dependencies.py<br/>
  python compute.py
  
  ## Finally<br/>
- We run flask web server and get news sentiment analysis, higher score is positive news ohterwise is negative:<br/>
+ We run flask web server and get news sentiment analysis, 0-negative,1-neutral,2-positive:<br/>
  python serve.py 
- * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_1.jpg)
- * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_2.jpg)
+ * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_1_1.jpg)
+ * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_1_2.jpg)
  
-## How we get score for sentiment analysis?
+## Metrics
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/metrics.jpg)
 
-* At the first we make simple text preparation and then get text summarization using transformers, pretrained  sshleifer/distilbart-cnn-12-6 <br/>
-* After that, we use another transformers for sentiment analysys - distilbert-base-uncased-finetuned-sst-2-english
-* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/code_summarization_and_sentiment_analysis.jpg)
-* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/text_preparation.jpg)
-
-
+## Find best models
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/pictv1_1.jpg)
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/pictv1_3.jpg)
+## Stack
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/stack.jpg)
