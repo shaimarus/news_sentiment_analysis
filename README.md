@@ -1,53 +1,37 @@
+# Sentiment analysis for news
+This repo use https://github.com/karpathy/arxiv-sanity-lite and get news from flask web server<br/>
+News get from https://newsapi.org. using API <br/>
 
-# arxiv-sanity-lite
+## Installation (python 3.9)
+* 1.pip install -r requirements.txt<br/>
 
-A much lighter-weight arxiv-sanity from-scratch re-write. Periodically polls arxiv API for new papers. Then allows users to tag papers of interest, and recommends new papers for each tag based on SVMs over tfidf features of paper abstracts. Allows one to search, rank, sort, slice and dice these results in a pretty web UI. Lastly, arxiv-sanity-lite can send you daily emails with recommendations of new papers based on your tags. Curate your tags, track recent papers in your area, and don't miss out!
+* Installation transformers u can use (https://github.com/pytorch/serve.git) <br/>
+apt update<br/>
+apt install -y default-jdk <br/>
+pip install torchserve torch-model-archiver torch-workflow-archiver <br/>
+pip install transformers<br/>
+python ./ts_scripts/install_dependencies.py<br/>
 
-I am running a live version of this code on [arxiv-sanity-lite.com](https://arxiv-sanity-lite.com).
+## Downloading news
+* 2.News download from https://newsapi.org using API
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_api.jpg)
+ we need run next scripts:<br/>
+ python arxiv_daemon.py --num 1
+ 
+ * run next script for compute some features:<br/>
+ python compute.py
+ 
+ ## Finally<br/>
+ We run flask web server and get news sentiment analysis, higher score is positive news ohterwise is negative:<br/>
+ python serve.py 
+ * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_1.jpg)
+ * ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/news_sentiment_analysis_2.jpg)
+ 
+## How we get score for sentiment analysis?
 
-![Screenshot](screenshot.jpg)
+* At the first we make simple text preparation and then get text summarization using transformers, pretrained  sshleifer/distilbart-cnn-12-6 <br/>
+* After that, we use another transformers for sentiment analysys - distilbert-base-uncased-finetuned-sst-2-english
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/code_summarization_and_sentiment_analysis.jpg)
+* ![Image alt](https://github.com/shaimarus/news_sentiment_analysis/blob/main/text_preparation.jpg)
 
-#### To run
 
-To run this locally I usually run the following script to update the database with any new papers. I typically schedule this via a periodic cron job:
-
-```bash
-#!/bin/bash
-
-python3 arxiv_daemon.py --num 2000
-
-if [ $? -eq 0 ]; then
-    echo "New papers detected! Running compute.py"
-    python3 compute.py
-else
-    echo "No new papers were added, skipping feature computation"
-fi
-```
-
-You can see that updating the database is a matter of first downloading the new papers via the arxiv api using `arxiv_daemon.py`, and then running `compute.py` to compute the tfidf features of the papers. Finally to serve the flask server locally we'd run something like:
-
-```bash
-export FLASK_APP=serve.py; flask run
-```
-
-All of the database will be stored inside the `data` directory. Finally, if you'd like to run your own instance on the interwebs I recommend simply running the above on a [Linode](https://www.linode.com), e.g. I am running this code currently on the smallest "Nanode 1 GB" instance indexing about 30K papers, which costs $5/month.
-
-(Optional) Finally, if you'd like to send periodic emails to users about new papers, see the `send_emails.py` script. You'll also have to `pip install sendgrid`. I run this script in a daily cron job.
-
-#### Requirements
-
- Install via requirements:
-
- ```bash
- pip install -r requirements.txt
- ```
-
-#### Todos
-
-- Make website mobile friendly with media queries in css etc
-- The metas table should not be a sqlitedict but a proper sqlite table, for efficiency
-- Build a reverse index to support faster search, right now we iterate through the entire database
-
-#### License
-
-MIT
