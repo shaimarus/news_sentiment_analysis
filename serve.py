@@ -14,6 +14,7 @@ from random import shuffle
 import random
 
 import numpy as np
+import pandas as pd
 from sklearn import svm
 
 from flask import Flask, request, redirect, url_for
@@ -120,54 +121,85 @@ def normalize_text(text):
 
     return text
 
-
-
-
-
-
-    #return len(x)*20
-
 def sentiment_rank():
     from transformers import pipeline
-
-    #summarization
-    summarizer = pipeline("summarization",model='sshleifer/distilbart-cnn-12-6')
-    #sentiment
-    classifier = pipeline("sentiment-analysis",model = "distilbert-base-uncased-finetuned-sst-2-english")
-    
 
     pdb = get_papers()
     pids = list(pdb.keys())
 
-    def sc(i):
+    def predict_label(i,normalize=True,summarization=True,summarizer=None,classifier=None):
         text=list(pdb.values())[i]['summary']
-        #print('---------------------------------------------')
-        print('before preprocess: ',text)
-        text=normalize_text(text)
-        print('after preprocess: ',text)
-        text=summarizer(text, min_length=2, max_length=len(text.split(' ')))[0]['summary_text']
-        print('ater summarization: ',text)
-        print('---------------------------------------------')
-
-
+        if normalize:
+            text=normalize_text(text)
+        if summarization:
+            text=summarizer(text, min_length=2, max_length=len(text.split(' ')))[0]['summary_text']
 
         a=classifier(text)[0]['label']
-        if a=='POSITIVE':
-            return classifier(text)[0]['score']
-        else:
-            return 1-classifier(text)[0]['score']
+
+        if a=='POSITIVE' or a=='positive' or a=='LABEL_2':
+            return 2
+        elif a=='NEGATIVE' or a=='negative' or a=='LABEL_0':
+            return 0
+        elif a=='neutral' or a=='LABEL_1':
+            return 1
+    
+    def metrics(normalize=True,summarization=True,summarization_model=None,Classifier_model=None):
+        pdb = get_papers()
+        pids = list(pdb.keys())
+        #summarization
+        summarizer = pipeline("summarization",model=summarization_model)
+        #sentiment
+        classifier = pipeline("sentiment-analysis",model = Classifier_model)
+
+        target_labels=pd.read_excel('target_labels.xlsx')
+        predict_labels=[predict_label(i,normalize=normalize,summarization=summarization,summarizer=summarizer,classifier=classifier) for i in range(len(pids))]
+        
+        indexes=[i for i,x in enumerate(pids) if 'https://www.bbc.co.uk/programmes' in x]
+        
+        pids=[pids[i] for i in range(len(pids)) if i not in indexes]
+
+        predict_labels=[predict_labels[i] for i in range(len(predict_labels)) if i not in indexes]
+
+        df1=pd.DataFrame({'url':pids,'predict_labels':predict_labels})
+        df2=df1.merge(target_labels,how='left', on='url')
+
+        df2.to_excel('test2.xlsx')
+
+        from sklearn.metrics import precision_recall_fscore_support
+        precision,recall,f1,_=precision_recall_fscore_support(df2['target'], df2['predict_labels'],labels=[0,1,2],warn_for=('precision', 'recall', 'f-score'))
+      
+        return np.round(f1,2),np.round(precision,2),np.round(recall,2),pids,predict_labels
+    t=list()
+
+    f1,precision,recall,pids,scores=metrics(normalize=False,summarization=False,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='distilbert-base-uncased-finetuned-sst-2-english')
+    t.append(['distilbert-base-uncased-finetuned-sst-2-english',False,False,f1,precision,recall])
+    f1,precision,recall,pids,scores=metrics(normalize=False,summarization=False,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='ProsusAI/finbert')
+    t.append(['ProsusAI/finbert',False,False,f1,precision,recall])
+    f1,precision,recall,pids,scores=metrics(normalize=False,summarization=False,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
+    t.append(['cardiffnlp/twitter-roberta-base-sentiment',False,False,f1,precision,recall])
+
+    f1,precision,recall,pids,scores=metrics(normalize=True,summarization=False,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
+    t.append(['cardiffnlp/twitter-roberta-base-sentiment',True,False,f1,precision,recall])
+    
+    f1,precision,recall,pids,scores=metrics(normalize=True,summarization=True,summarization_model='facebook/bart-large-cnn',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
+    t.append(['cardiffnlp/twitter-roberta-base-sentiment',True,'facebook/bart-large-cnn',f1,precision,recall])
+
+    f1,precision,recall,pids,scores=metrics(normalize=True,summarization=True,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
+    t.append(['cardiffnlp/twitter-roberta-base-sentiment',True,'sshleifer/distilbart-cnn-12-6',f1,precision,recall])
+    
+    f1,precision,recall,pids,scores=metrics(normalize=True,summarization=True,summarization_model='google/pegasus-xsum',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
+    t.append(['cardiffnlp/twitter-roberta-base-sentiment',True,'google/pegasus-xsum',f1,precision,recall])
 
 
+    ind=['classifier_model','normalize','summarization_mode','f1_score [0-negative,1-neutral,2-positive]','precision [0-negative,1-neutral,2-positive]','recall [0-negative,1-neutral,2-positive]']
+    df=pd.DataFrame(t[0],ind,columns=['0'])
+    for i in range(1,7):
+        df[str(i)]=t[i]
 
-    scores=[sc(i) for i in range(len(pids))]
-    
-    indexes=[i for i,x in enumerate(pids) if 'https://www.bbc.co.uk/programmes' in x]
-    
-    pids=[pids[i] for i in range(len(pids)) if i not in indexes]
-    scores=[scores[i] for i in range(len(scores)) if i not in indexes]
-    
+    df.to_excel('metrics_result.xlsx')
+    #run best params
+    _,_,_,pids,scores=metrics(normalize=False,summarization=False,summarization_model='sshleifer/distilbart-cnn-12-6',Classifier_model='cardiffnlp/twitter-roberta-base-sentiment')
 
-    
     return pids, scores
 
 def time_rank():
